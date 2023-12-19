@@ -1,3 +1,3 @@
-module github.com/remiges-aniket/idshield
+module github.com/remiges-tech/idshield
 
 go 1.21.3
