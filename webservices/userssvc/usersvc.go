@@ -78,8 +78,8 @@ func HandleCreateUserRequest(c *gin.Context, s *service.Service) {
 	// Unmarshal JSON request into createUserRequest struct
 	err = wscutils.BindJSON(c, &user)
 	if err != nil {
-		// Log and respond to JSON unmarshalling error
-		l.LogActivity("Error unmarshalling JSON to struct:", logharbour.DebugInfo{Variables: map[string]interface{}{"Error": err.Error()}})
+		// Log and respond to JSON Unmarshalling error
+		l.LogActivity("Error Unmarshalling JSON to struct:", logharbour.DebugInfo{Variables: map[string]interface{}{"Error": err.Error()}})
 		wscutils.SendErrorResponse(c, wscutils.NewErrorResponse("invalid_json"))
 		return
 	}
