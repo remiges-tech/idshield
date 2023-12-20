@@ -99,7 +99,7 @@ func main() {
 	s := service.NewService(r).WithDependency("gocloak", gcClient).WithLogHarbour(lh).WithDependency("realm", appConfig.Realm)
 
 	// Register a route for handling user creation requests
-	s.RegisterRoute(http.MethodPost, "/users", usersvc.HandleCreateUserRequest)
+	s.RegisterRoute(http.MethodPost, "/createUser", usersvc.HandleCreateUserRequest)
 
 	// Start the service
 	if err := r.Run(":" + appConfig.AppServerPort); err != nil {
