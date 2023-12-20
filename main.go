@@ -13,7 +13,7 @@ import (
 	"github.com/remiges-tech/alya/router"
 	"github.com/remiges-tech/alya/service"
 	"github.com/remiges-tech/alya/wscutils"
-	usersvc "github.com/remiges-tech/idshield/webservices/userssvc"
+	"github.com/remiges-tech/idshield/webservices/usersvc"
 	"github.com/remiges-tech/logharbour/logharbour"
 )
 
