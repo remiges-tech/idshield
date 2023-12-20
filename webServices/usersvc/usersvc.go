@@ -1,8 +1,6 @@
 package usersvc
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"time"
@@ -10,11 +8,11 @@ import (
 	"github.com/Nerzal/gocloak/v13"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
-	"github.com/golang-jwt/jwt/v4"
 
 	"github.com/remiges-tech/alya/router"
 	"github.com/remiges-tech/alya/service"
 	"github.com/remiges-tech/alya/wscutils"
+	"github.com/remiges-tech/idshield/utils"
 	"github.com/remiges-tech/logharbour/logharbour"
 )
 
@@ -38,11 +36,6 @@ type createUserResponse struct {
 	Enabled   bool   `json:"enabled"`
 }
 
-// Capabilities representing user capabilities.
-type Capabilities struct {
-	Capability []string `json:"capability"`
-}
-
 // HandleCreateUserRequest is the handler function for creating a new user.
 func HandleCreateUserRequest(c *gin.Context, s *service.Service) {
 	l := s.LogHarbour
@@ -59,7 +52,7 @@ func HandleCreateUserRequest(c *gin.Context, s *service.Service) {
 
 	capabilitiesJson := []byte(`{"capability": ["Admin"]}`)
 
-	isCapable, err := isCapable(s, token, capabilitiesJson)
+	isCapable, err := utils.IsCapable(s, token, capabilitiesJson)
 	if err != nil {
 		l.LogActivity("Error while decodeing token:", logharbour.DebugInfo{Variables: map[string]interface{}{"error": err}})
 		fmt.Println("err", err)
@@ -192,69 +185,4 @@ func (u *createUserRequest) getValsForUser(err validator.FieldError) []string {
 	}
 
 	return vals
-}
-
-// isCapable checks if a user, identified by the provided access token, possesses all the specified capabilities.
-// It utilizes the provided GoCloak client, service information, and capabilities JSON to make the determination.
-// The function decodes the access token, extracts roles from the claims, and compares them with the specified capabilities.
-// If the user has all the required capabilities, it returns true; otherwise, it returns false.
-// An error is returned if there are issues with decoding the token or handling the provided data.
-func isCapable(s *service.Service, accessToken string, capabilitiesJson []byte) (bool, error) {
-	l := s.LogHarbour
-	// Extracting the GoCloak client from the service dependencies
-	gcClient := s.Dependencies["gocloak"].(*gocloak.GoCloak)
-
-	// Extracting the relam from the service dependencies
-	relam := s.Dependencies["realm"].(string)
-
-	_, claims, err := gcClient.DecodeAccessToken(context.Background(), accessToken, relam)
-	if err != nil {
-		l.Debug0().LogDebug("error while decoding token: ", logharbour.DebugInfo{Variables: map[string]interface{}{"error": err}})
-		return false, err
-	}
-
-	// Extract roles from the claims
-	roles, err := extractRoles(*claims)
-	if err != nil {
-		l.Debug0().LogDebug("Error while extracting realm_access from token claims ", logharbour.DebugInfo{Variables: map[string]interface{}{"error": err}})
-	}
-
-	var capabilities Capabilities
-
-	if err = json.Unmarshal(capabilitiesJson, &capabilities); err != nil {
-		l.Debug0().LogDebug("Error while unmarshlaing capabilitiesJson ", logharbour.DebugInfo{Variables: map[string]interface{}{"error": err}})
-		return false, err
-	}
-
-	capabilitiesMap := make(map[string]bool)
-	for _, capability := range capabilities.Capability {
-		capabilitiesMap[capability] = true
-	}
-
-	allCapabilitiesPresent := false
-	for _, role := range roles {
-		if _, exists := capabilitiesMap[role]; exists {
-			allCapabilitiesPresent = true
-			continue
-		}
-	}
-	return allCapabilitiesPresent, nil
-
-}
-
-// Extract roles from the claims
-func extractRoles(claims jwt.MapClaims) ([]string, error) {
-	var roles []string
-	if realmAccess, ok := claims["realm_access"].(map[string]interface{}); ok {
-		if roleClaims, ok := realmAccess["roles"].([]interface{}); ok {
-			for _, role := range roleClaims {
-				if r, ok := role.(string); ok {
-					roles = append(roles, r)
-				}
-			}
-		}
-	} else {
-		return nil, fmt.Errorf("error while extracting realm_access from token claims")
-	}
-	return roles, nil
 }
