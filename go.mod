@@ -1,12 +1,12 @@
 module github.com/remiges-tech/idshield
 
-go 1.21.3
+go 1.21.5
 
 require (
 	github.com/Nerzal/gocloak/v13 v13.8.0
 	github.com/gin-gonic/gin v1.9.1
 	github.com/go-playground/validator/v10 v10.16.0
-	github.com/remiges-tech/alya v0.6.0
+	github.com/remiges-tech/alya v0.5.0
 	github.com/remiges-tech/logharbour v0.10.0
 )
 
@@ -17,6 +17,7 @@ require (
 	github.com/coreos/go-oidc/v3 v3.7.0 // indirect
 	github.com/coreos/go-semver v0.3.0 // indirect
 	github.com/coreos/go-systemd/v22 v22.3.2 // indirect
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/gabriel-vasile/mimetype v1.4.3 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
@@ -26,7 +27,7 @@ require (
 	github.com/go-resty/resty/v2 v2.7.0 // indirect
 	github.com/goccy/go-json v0.10.2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/golang-jwt/jwt/v4 v4.5.0 // indirect
+	github.com/golang-jwt/jwt/v4 v4.5.0
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.4 // indirect

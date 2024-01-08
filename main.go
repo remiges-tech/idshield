@@ -6,34 +6,29 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/Nerzal/gocloak/v13"
-	"github.com/gin-gonic/gin"
 	"github.com/remiges-tech/alya/config"
 	"github.com/remiges-tech/alya/logger"
 	"github.com/remiges-tech/alya/router"
 	"github.com/remiges-tech/alya/service"
 	"github.com/remiges-tech/alya/wscutils"
-	user "github.com/remiges-tech/idshield/userservice"
+	"github.com/remiges-tech/idshield/webServices/groupsvc"
+	"github.com/remiges-tech/idshield/webServices/usersvc"
 	"github.com/remiges-tech/logharbour/logharbour"
 )
 
+// AppConfig represents the configuration structure for the application.
 type AppConfig struct {
-	DBConnURL        string `json:"db_conn_url"`
-	DBHost           string `json:"db_host"`
-	DBPort           int    `json:"db_port"`
-	DBUser           string `json:"db_user"`
-	DBPassword       string `json:"db_password"`
-	DBName           string `json:"db_name"`
 	AppServerPort    string `json:"app_server_port"`
-	ProviderUrl      string `json:"provider_url"`
+	ProviderURL      string `json:"provider_url"`
 	KeycloakURL      string `json:"keycloak_url"`
-	KeycloakClientID string `json:"keycloak_client_id"`
 	Realm            string `json:"realm"`
+	KeycloakClientID string `json:"keycloak_client_id"`
 }
 
 func main() {
+	// Command-line flags for configuration options
 	configSystem := flag.String("configSource", "file", "The configuration system to use (file or rigel)")
 	configFilePath := flag.String("configFile", "./config.json", "The path to the configuration file")
 	rigelConfigName := flag.String("configName", "C1", "The name of the configuration")
@@ -42,7 +37,10 @@ func main() {
 
 	flag.Parse()
 
+	// Initialize configuration struct
 	var appConfig AppConfig
+
+	// Load configuration based on the specified system
 	switch *configSystem {
 	case "file":
 		err := config.LoadConfigFromFile(*configFilePath, &appConfig)
@@ -58,76 +56,62 @@ func main() {
 		log.Fatalf("Unknown configuration system: %s", *configSystem)
 	}
 
+	// Print the loaded configuration
 	fmt.Printf("Loaded configuration: %+v\n", appConfig)
 
-	// Open the error types file
+	// Open and load error types from the file
 	file, err := os.Open("./errortypes.yaml")
 	if err != nil {
 		log.Fatalf("Failed to open error types file: %v", err)
 	}
 	defer file.Close()
 
-	// Load the error types
 	wscutils.LoadErrorTypes(file)
 
-	// logger
-	fallbackWriter := logharbour.NewFallbackWriter(os.Stdout, os.Stdout)
+	// Logger setup
+	logFile, err := os.OpenFile("log.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fallbackWriter := logharbour.NewFallbackWriter(logFile, os.Stdout)
 	lctx := logharbour.NewLoggerContext(logharbour.Info)
 	lh := logharbour.NewLogger(lctx, "idshield", fallbackWriter)
-	lh.WithPriority(logharbour.Debug2)
 	fl := logger.NewFileLogger("/tmp/idshield.log")
 
-	// auth middleware
-
+	// Redis token cache setup
 	cache := router.NewRedisTokenCache("localhost:6379", "", 0, 0)
-	authMiddleware, err := router.LoadAuthMiddleware(appConfig.KeycloakClientID, appConfig.ProviderUrl, cache, fl)
+
+	// Authentication middleware setup
+	authMiddleware, err := router.LoadAuthMiddleware(appConfig.KeycloakClientID, appConfig.ProviderURL, cache, fl)
 	if err != nil {
 		log.Fatalf("Failed to create new auth middleware: %v", err)
 	}
 
-	// router
-
+	// Router setup
 	r, err := router.SetupRouter(true, fl, authMiddleware)
 	if err != nil {
 		log.Fatalf("Failed to setup router: %v", err)
 	}
 
-	// Logging middleware
-	r.Use(func(c *gin.Context) {
-		log.Printf("[request] %s - %s %s\n", c.Request.RemoteAddr, c.Request.Method, c.Request.URL.Path)
-		start := time.Now()
-		c.Next()
-		duration := time.Since(start)
-		log.Printf("[request] %s - %s %s %s\n", c.Request.RemoteAddr, c.Request.Method, c.Request.URL.Path, duration)
-	})
+	// Create a gocloak client
+	gcClient := gocloak.NewClient(appConfig.KeycloakURL)
 
-	// Create a new service for /hello
-	helloService := service.NewService(r).WithLogHarbour(lh)
+	// Service setup
+	s := service.NewService(r).WithDependency("gocloak", gcClient).WithLogHarbour(lh).WithDependency("realm", appConfig.Realm)
 
-	// Define the handler function
-	handleHelloRequest := func(c *gin.Context, s *service.Service) {
-		// Use s.Logger.Log to log a message
-		helloService.LogHarbour.LogActivity("Processing /hello request", nil)
+	// Register a route for handling for user
+	s.RegisterRoute(http.MethodPost, "/usernew", usersvc.User_new)
+	s.RegisterRoute(http.MethodGet, "/userget", usersvc.User_get)
+	s.RegisterRoute(http.MethodPut, "/userupdate", usersvc.User_update)
+	s.RegisterRoute(http.MethodGet, "/userlist", usersvc.User_list)
+	s.RegisterRoute(http.MethodDelete, "/userdelete", usersvc.User_delete)
+	s.RegisterRoute(http.MethodPost, "/useractivate", usersvc.User_activate)
+	s.RegisterRoute(http.MethodPost, "/userdeactivate", usersvc.User_deactivate)
 
-		// Process the request
-		c.JSON(http.StatusOK, gin.H{
-			"message": "Hello, World!",
-		})
-	}
-
-	// Register routes
-	helloService.RegisterRoute(http.MethodGet, "/hello", handleHelloRequest)
-
-	// Create a new service for /users
-	userService := service.NewService(r).WithLogHarbour(lh).WithDependency("gocloak", gocloak.NewClient(appConfig.KeycloakURL)).WithDependency("keycloak_url", appConfig.KeycloakURL)
-
-	// User keycloack handlers
-	userService.RegisterRoute(http.MethodPut, "/user/password/:id", user.SetPassword)
-	userService.RegisterRoute(http.MethodPost, "/users", user.CreateUser)
-	userService.RegisterRoute(http.MethodGet, "/user/:realm", user.GetUser)
-	userService.RegisterRoute(http.MethodGet, "/users/list/:realm", user.FetchAllUsers)
-	userService.RegisterRoute(http.MethodPut, "/user/:id", user.UpdateUserByID)
-	userService.RegisterRoute(http.MethodDelete, "/user/:id", user.DeleteUserByID)
+	// Register a route for handling for group
+	s.RegisterRoute(http.MethodPost, "/groupnew", groupsvc.Group_new)
+	s.RegisterRoute(http.MethodGet, "/groupget", groupsvc.Group_get)
+	s.RegisterRoute(http.MethodPost, "/groupupdate", groupsvc.Group_update)
 
 	// Start the service
 	if err := r.Run(":" + appConfig.AppServerPort); err != nil {

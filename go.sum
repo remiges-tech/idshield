@@ -25,6 +25,8 @@ github.com/coreos/go-systemd/v22 v22.3.2/go.mod h1:Y58oyj3AT4RCenI/lSvhwexgC+NSV
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
+github.com/dgrijalva/jwt-go v3.2.0+incompatible h1:7qlOGliEKZXTDg6OTjfoBKDXWrumCAMpl/TFQ4/5kLM=
+github.com/dgrijalva/jwt-go v3.2.0+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZmtrrCbhqsmaPHjLKYnJCaQ=
 github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f h1:lO4WD4F/rVNCu3HqELle0jiPLLBs70cWOduZpkS1E78=
 github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f/go.mod h1:cuUVRXasLTGF7a8hSLbxyZXjz+1KgoB3wDUb6vlszIc=
 github.com/dustin/go-humanize v1.0.0 h1:VSnTsYCnlFHaM2/igO1h6X3HA71jcobQuxemgkq4zYo=
@@ -114,8 +116,8 @@ github.com/prometheus/procfs v0.6.0 h1:mxy4L2jP6qMonqmq+aTtOx1ifVWUgG/TAmntgbh3x
 github.com/prometheus/procfs v0.6.0/go.mod h1:cz+aTbrPOrUb4q7XlbU9ygM+/jj0fzG6c1xBZuNvfVA=
 github.com/redis/go-redis/v9 v9.3.0 h1:RiVDjmig62jIWp7Kk4XVLs0hzV6pI3PyTnnL0cnn0u0=
 github.com/redis/go-redis/v9 v9.3.0/go.mod h1:hdY0cQFCN4fnSYT6TkisLufl/4W5UIXyv0b/CLO2V2M=
-github.com/remiges-tech/alya v0.6.0 h1:a7rs3dAd37Zba9LK+EUuzJzNZ8bOSngDXfOFpgRUjsA=
-github.com/remiges-tech/alya v0.6.0/go.mod h1:Krnm6KKRxypKYQRIy+QAcNqr4/RtYS0lq0peH+pFcqc=
+github.com/remiges-tech/alya v0.5.0 h1:dNwQZDD+G+c4H7L6Mlx7WNOr//J6bUAc2DnJ++qR9uo=
+github.com/remiges-tech/alya v0.5.0/go.mod h1:Krnm6KKRxypKYQRIy+QAcNqr4/RtYS0lq0peH+pFcqc=
 github.com/remiges-tech/logharbour v0.10.0 h1:By5j+u70YBvciVdhtTI1ritlOjMz7UKE53F7D6XNdQs=
 github.com/remiges-tech/logharbour v0.10.0/go.mod h1:XiWZ0YH0sK7wixXVukMSon6vsOv3EW3Zos1rxA75JNc=
 github.com/remiges-tech/rigel v0.8.0 h1:fiMbqJsol+eW+3DoNV6VDarV1Gw7Ipji7xHPwLA2fXo=
