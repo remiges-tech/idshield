@@ -40,7 +40,7 @@ type user struct {
 // 	Enabled       *bool   `json:"enabled" validate:"required"`
 // }
 
-type UserListRequest struct {
+type userListRequest struct {
 	Email         *string `json:"email,omitempty"`
 	FirstName     *string `json:"firstName,omitempty"`
 	LastName      *string `json:"lastName,omitempty"`
@@ -51,7 +51,7 @@ type UserListRequest struct {
 	CreatedAfter  *string `json:"createdafter,omitempty"`
 }
 
-type UserResponse struct {
+type userResponse struct {
 	Id            *string              `json:"id,omitempty"`
 	Username      *string              `json:"username,omitempty"`
 	Email         *string              `json:"email,omitempty"`
@@ -158,9 +158,9 @@ func User_new(c *gin.Context, s *service.Service) {
 func User_list(c *gin.Context, s *service.Service) {
 	lh := s.LogHarbour
 	lh.Log("User_list request received")
-	var usrListRequest UserListRequest
-	var eachUserResp UserResponse
-	var response []UserResponse
+	var usrListRequest userListRequest
+	// var eachUserResp userResponse
+	var response []userResponse
 	var afterDate time.Time
 	// step 1: bind request body to struct if not null
 	err := wscutils.BindJSON(c, &usrListRequest)
@@ -202,7 +202,7 @@ func User_list(c *gin.Context, s *service.Service) {
 		return
 	}
 
-	realm := getRealmFromJwt(c, token)
+	realm := utils.GetRealmFromJwt(c, token)
 	if gocloak.NilOrEmpty(&realm) {
 		wscutils.SendErrorResponse(c, wscutils.NewResponse(wscutils.ErrorStatus, nil, []wscutils.ErrorMessage{wscutils.BuildErrorMessage(utils.ErrRealmNotFound, &realm)}))
 		lh.Debug0().Log(fmt.Sprintf("realm_not_found: %v", map[string]any{"realm": realm}))
@@ -237,7 +237,7 @@ func User_list(c *gin.Context, s *service.Service) {
 		for _, eachUser := range users {
 			if afterDate.Before(utils.UnixMilliToTimestamp(*eachUser.CreatedTimestamp)) {
 				// setting response fields
-				eachUserResp = UserResponse{
+				eachUserResp := userResponse{
 					Id:            eachUser.ID,
 					Username:      eachUser.Username,
 					Email:         eachUser.Email,
@@ -254,7 +254,7 @@ func User_list(c *gin.Context, s *service.Service) {
 	} else {
 		for _, eachUser := range users {
 			// setting response fields
-			eachUserResp = UserResponse{
+			eachUserResp := userResponse{
 				Id:            eachUser.ID,
 				Username:      eachUser.Username,
 				Email:         eachUser.Email,
@@ -301,7 +301,7 @@ func User_get(c *gin.Context, s *service.Service) {
 		return
 	}
 
-	realm := getRealmFromJwt(c, token)
+	realm := utils.GetRealmFromJwt(c, token)
 	if gocloak.NilOrEmpty(&realm) {
 		wscutils.SendErrorResponse(c, wscutils.NewResponse(wscutils.ErrorStatus, nil, []wscutils.ErrorMessage{wscutils.BuildErrorMessage(utils.ErrRealmNotFound, &realm)}))
 		lh.Debug0().Log(fmt.Sprintf("realm_not_found: %v", map[string]any{"realm": realm}))
@@ -343,7 +343,7 @@ func User_get(c *gin.Context, s *service.Service) {
 	user = users[0]
 
 	// setting response fields
-	userResp := UserResponse{
+	userResp := userResponse{
 		Id:            user.ID,
 		Username:      user.Username,
 		Email:         user.Email,
@@ -404,7 +404,7 @@ func User_update(c *gin.Context, s *service.Service) {
 		return
 	}
 
-	realm := getRealmFromJwt(c, token)
+	realm := utils.GetRealmFromJwt(c, token)
 	if gocloak.NilOrEmpty(&realm) {
 		wscutils.SendErrorResponse(c, wscutils.NewResponse(wscutils.ErrorStatus, nil, []wscutils.ErrorMessage{wscutils.BuildErrorMessage(utils.ErrRealmNotFound, &realm)}))
 		lh.Debug0().Log(fmt.Sprintf("realm_not_found: %v", map[string]any{"realm": realm}))
@@ -466,7 +466,7 @@ func User_delete(c *gin.Context, s *service.Service) {
 		return
 	}
 
-	realm := getRealmFromJwt(c, token)
+	realm := utils.GetRealmFromJwt(c, token)
 	if gocloak.NilOrEmpty(&realm) {
 		wscutils.SendErrorResponse(c, wscutils.NewResponse(wscutils.ErrorStatus, nil, []wscutils.ErrorMessage{wscutils.BuildErrorMessage(utils.ErrRealmNotFound, &realm)}))
 		lh.Debug0().Log(fmt.Sprintf("realm_not_found: %v", map[string]any{"realm": realm}))
@@ -771,14 +771,4 @@ func (u *userActivity) CustomValidate() error {
 		return errors.New("either ID or Username must be set")
 	}
 	return nil
-}
-
-func getRealmFromJwt(c *gin.Context, token string) string {
-	realm, err := utils.ExtractClaimFromJwt(token, "iss")
-	if err != nil {
-		return ""
-	}
-	split := strings.Split(realm, "/")
-	realm = split[len(split)-1]
-	return realm
 }

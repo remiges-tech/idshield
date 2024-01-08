@@ -23,7 +23,12 @@ type group struct {
 	Attributes map[string]string `json:"attr" validate:"required"`
 }
 
-type GroupResponse struct {
+type groupListResponse struct {
+	ShortName *string `json:"shortName,omitempty"`
+	LongName  *string `json:"longName,omitempty"`
+	Nusers    int     `json:"nusers"`
+}
+type groupResponse struct {
 	ID          *string              `json:"id,omitempty"`
 	Name        *string              `json:"name,omitempty"`
 	Path        *string              `json:"path,omitempty"`
@@ -183,7 +188,7 @@ func Group_get(c *gin.Context, s *service.Service) {
 	// if group found then only you will be here, hence ignore the err & get the details of that group with path including attributes
 	group, _ := client.GetGroupByPath(c, token, realm, *groups[0].Path)
 
-	grpResp := GroupResponse{
+	grpResp := groupResponse{
 		ID:          group.ID,
 		Name:        group.Name,
 		SubGroups:   group.SubGroups,
@@ -296,6 +301,76 @@ func Group_update(c *gin.Context, s *service.Service) {
 	wscutils.SendSuccessResponse(c, &wscutils.Response{Status: "success"})
 
 	l.Log("Finished update Group_Update()")
+}
+
+// Group_list handles the GET /grouplist request
+func Group_list(c *gin.Context, s *service.Service) {
+	lh := s.LogHarbour
+	lh.Log("Group_list request received")
+	var listResponse []groupListResponse
+
+	client := s.Dependencies["gocloak"].(*gocloak.GoCloak)
+
+	token, err := router.ExtractToken(c.GetHeader("Authorization")) // separate "Bearer " word from token
+	if err != nil {
+		wscutils.SendErrorResponse(c, wscutils.NewResponse(wscutils.ErrorStatus, nil, []wscutils.ErrorMessage{wscutils.BuildErrorMessage(wscutils.ErrcodeMissing, nil, "token")}))
+		lh.Debug0().LogActivity("token_missing", map[string]any{"error": err.Error()})
+		return
+	}
+	lh.Log("token extracted from header")
+
+	reqUserName, err := utils.ExtractClaimFromJwt(token, "preferred_username")
+	if err != nil {
+		wscutils.SendErrorResponse(c, wscutils.NewResponse(wscutils.ErrorStatus, nil, []wscutils.ErrorMessage{wscutils.BuildErrorMessage(wscutils.ErrcodeMissing, nil, "preferred_username")}))
+		lh.LogActivity("Error while extracting preferred_username from token:", logharbour.DebugInfo{Variables: map[string]any{"preferred_username": err.Error()}})
+		return
+	}
+	// Authz_check():
+	isCapable, _ := utils.Authz_check(types.OpReq{User: reqUserName, CapNeeded: []string{"devloper", "admin"}}, false)
+	if !isCapable {
+		wscutils.SendErrorResponse(c, wscutils.NewResponse(wscutils.ErrorStatus, nil, []wscutils.ErrorMessage{wscutils.BuildErrorMessage(utils.ErrUserNotAuthorized, nil)}))
+		lh.Debug0().Log(utils.ErrUserNotAuthorized)
+		return
+	}
+
+	realm := utils.GetRealmFromJwt(c, token)
+	if gocloak.NilOrEmpty(&realm) {
+		wscutils.SendErrorResponse(c, wscutils.NewResponse(wscutils.ErrorStatus, nil, []wscutils.ErrorMessage{wscutils.BuildErrorMessage(utils.ErrRealmNotFound, &realm)}))
+		lh.Debug0().LogActivity("realm_not_found :", map[string]any{"realm": realm})
+		return
+	}
+	lh.LogActivity("User_update realm parsed: %v", map[string]any{"realm": realm})
+
+	// step 4: process the request
+	groups, err := client.GetGroups(c, token, realm, gocloak.GetGroupsParams{})
+
+	if err != nil || len(groups) == 0 {
+		switch err.Error() {
+		case utils.ErrHTTPUnauthorized:
+			wscutils.SendErrorResponse(c, wscutils.NewResponse(wscutils.ErrorStatus, nil, []wscutils.ErrorMessage{wscutils.BuildErrorMessage(wscutils.ErrcodeTokenVerificationFailed, &realm, err.Error())}))
+			lh.Debug0().LogActivity("token expired error from keycloak :", map[string]any{"error": err.Error()})
+		default:
+			wscutils.SendErrorResponse(c, wscutils.NewResponse(wscutils.ErrorStatus, nil, []wscutils.ErrorMessage{wscutils.BuildErrorMessage(utils.ErrUserNotFound, &realm, err.Error())}))
+			lh.Debug0().LogActivity("user not found in given realm :", map[string]any{"realm": realm, "error": err.Error()})
+		}
+		return
+	}
+
+	for _, eachGroup := range groups {
+		// setting response fields
+		eachGrpRep := groupListResponse{
+			ShortName: eachGroup.Path,
+			LongName:  eachGroup.Name,
+		}
+
+		// to get the count of the users available in that group
+		userCountGroup, _ := client.GetGroupMembers(c, token, realm, *eachGroup.ID, gocloak.GetGroupsParams{})
+		eachGrpRep.Nusers = len(userCountGroup)
+
+		listResponse = append(listResponse, eachGrpRep)
+	}
+	// step 5: if there are no errors, send success response
+	wscutils.SendSuccessResponse(c, wscutils.NewSuccessResponse(map[string]any{"groups": listResponse}))
 }
 
 // validateCreateUser performs validation for the createUserRequest.

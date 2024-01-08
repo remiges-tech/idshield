@@ -95,3 +95,13 @@ func GocloakErrorHandler(c *gin.Context, l *logharbour.Logger, err error) {
 	}
 
 }
+
+func GetRealmFromJwt(c *gin.Context, token string) string {
+	realm, err := ExtractClaimFromJwt(token, "iss")
+	if err != nil {
+		return ""
+	}
+	split := strings.Split(realm, "/")
+	realm = split[len(split)-1]
+	return realm
+}
