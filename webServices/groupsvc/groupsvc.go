@@ -17,9 +17,9 @@ import (
 )
 
 type group struct {
-	ID         string              `json:"id,omitempty"`
-	ShortName  string              `json:"shortName" validate:"required"`
-	LongName   string              `json:"longName" validate:"required"`
+	ID         string            `json:"id,omitempty"`
+	ShortName  string            `json:"shortName" validate:"required"`
+	LongName   string            `json:"longName" validate:"required"`
 	Attributes map[string]string `json:"attr" validate:"required"`
 }
 
@@ -168,31 +168,34 @@ func Group_get(c *gin.Context, s *service.Service) {
 		lh.Debug0().Log("shortName missing")
 		return
 	}
-
 	// step 4: process the request
+	// Search given shortName in groups and store it's ID and PATH
 	groupParams.Search = &shortName
 	groups, err := client.GetGroups(c, token, realm, groupParams)
 	lh.Log("GetGroups() request received")
 
+	// if err or response is empty then no group with given name, Hence return
 	if err != nil || len(groups) == 0 {
 		wscutils.SendErrorResponse(c, wscutils.NewResponse(wscutils.ErrorStatus, nil, []wscutils.ErrorMessage{wscutils.BuildErrorMessage("group_not_found", &realm)}))
 		lh.Debug0().Log(fmt.Sprintf("group not found in given realm error: %v", map[string]any{"realm": realm}))
 		return
 	}
+	// if group found then only you will be here, hence ignore the err & get the details of that group with path including attributes
+	group, _ := client.GetGroupByPath(c, token, realm, *groups[0].Path)
 
 	grpResp := GroupResponse{
-		ID:          groups[0].ID,
-		Name:        groups[0].Name,
-		SubGroups:   groups[0].SubGroups,
-		Attributes:  groups[0].Attributes,
-		Access:      groups[0].Access,
-		ClientRoles: groups[0].ClientRoles,
-		RealmRoles:  groups[0].RealmRoles,
-		// Path:        groups[0].Path,    // can add more if required
+		ID:          group.ID,
+		Name:        group.Name,
+		SubGroups:   group.SubGroups,
+		Attributes:  group.Attributes,
+		Access:      group.Access,
+		ClientRoles: group.ClientRoles,
+		RealmRoles:  group.RealmRoles,
 		// CreatedAt:   time.Time{},
 	}
 
-	userCountGroup, _ := client.GetGroupMembers(c, token, realm, *groups[0].ID, groupParams)
+	// to get the count of the users available in that group
+	userCountGroup, _ := client.GetGroupMembers(c, token, realm, *group.ID, groupParams)
 	grpResp.Nusers = len(userCountGroup)
 
 	// step 5: if there are no errors, send success response
